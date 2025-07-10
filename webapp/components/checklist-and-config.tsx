@@ -113,6 +113,8 @@ export default function ChecklistAndConfig({
       });
       if (!res.ok) throw new Error("Failed to update webhook");
       setCurrentVoiceUrl(appendedTwimlUrl);
+      // Add this line to update the checklist state
+      setAllChecksPassed(true);
     } catch (err) {
       console.error(err);
     } finally {
