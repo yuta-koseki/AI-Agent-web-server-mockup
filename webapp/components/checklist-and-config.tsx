@@ -36,9 +36,8 @@ export default function ChecklistAndConfig({
   const [currentNumberSid, setCurrentNumberSid] = useState("");
   const [currentVoiceUrl, setCurrentVoiceUrl] = useState("");
 
-  const [publicUrl, setPublicUrl] = useState("");
-  const [localServerUp, setLocalServerUp] = useState(false);
-  const [publicUrlAccessible, setPublicUrlAccessible] = useState(false);
+  const [publicUrl, setPublicUrl] = useState("http://52.193.175.191");
+  const [serverUp, setServerUp] = useState(false);
 
   const [allChecksPassed, setAllChecksPassed] = useState(false);
   const [webhookLoading, setWebhookLoading] = useState(false);
@@ -74,21 +73,18 @@ export default function ChecklistAndConfig({
           setSelectedPhoneNumber(selected.friendlyName || "");
         }
 
-        // 3. Check local server & public URL
-        let foundPublicUrl = "";
+        // 3. Check WebSocket server
         try {
-          const resLocal = await fetch("http://localhost:8081/public-url");
-          if (resLocal.ok) {
-            const pubData = await resLocal.json();
-            foundPublicUrl = pubData?.publicUrl || "";
-            setLocalServerUp(true);
-            setPublicUrl(foundPublicUrl);
+          const resServer = await fetch(
+            "http://52.193.175.191:8081/public-url"
+          );
+          if (resServer.ok) {
+            setServerUp(true);
           } else {
-            throw new Error("Local server not responding");
+            throw new Error("WebSocket server not responding");
           }
         } catch {
-          setLocalServerUp(false);
-          setPublicUrl("");
+          setServerUp(false);
         }
       } catch (err) {
         console.error(err);
@@ -124,30 +120,7 @@ export default function ChecklistAndConfig({
     }
   };
 
-  const checkNgrok = async () => {
-    if (!localServerUp || !publicUrl) return;
-    setNgrokLoading(true);
-    let success = false;
-    for (let i = 0; i < 5; i++) {
-      try {
-        const resTest = await fetch(publicUrl + "/public-url");
-        if (resTest.ok) {
-          setPublicUrlAccessible(true);
-          success = true;
-          break;
-        }
-      } catch {
-        // retry
-      }
-      if (i < 4) {
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-    }
-    if (!success) {
-      setPublicUrlAccessible(false);
-    }
-    setNgrokLoading(false);
-  };
+  // Removed checkNgrok function as it's no longer needed
 
   const checklist = useMemo(() => {
     return [
@@ -211,36 +184,10 @@ export default function ChecklistAndConfig({
           ),
       },
       {
-        label: "Start local WebSocket server",
-        done: localServerUp,
-        description: "cd websocket-server && npm run dev",
+        label: "Verify WebSocket server",
+        done: serverUp,
+        description: "Ensure WebSocket server is running on EC2",
         field: null,
-      },
-      {
-        label: "Start ngrok",
-        done: publicUrlAccessible,
-        description: "Then set ngrok URL in websocket-server/.env",
-        field: (
-          <div className="flex items-center gap-2 w-full">
-            <div className="flex-1">
-              <Input value={publicUrl} disabled />
-            </div>
-            <div className="flex-1">
-              <Button
-                variant="outline"
-                onClick={checkNgrok}
-                disabled={ngrokLoading || !localServerUp || !publicUrl}
-                className="w-full"
-              >
-                {ngrokLoading ? (
-                  <Loader2 className="mr-2 h-4 animate-spin" />
-                ) : (
-                  "Check ngrok"
-                )}
-              </Button>
-            </div>
-          </div>
-        ),
       },
       {
         label: "Update Twilio webhook URL",
@@ -272,14 +219,12 @@ export default function ChecklistAndConfig({
     hasCredentials,
     phoneNumbers,
     currentNumberSid,
-    localServerUp,
+    serverUp,
     publicUrl,
-    publicUrlAccessible,
     currentVoiceUrl,
     isWebhookMismatch,
     appendedTwimlUrl,
     webhookLoading,
-    ngrokLoading,
     setSelectedPhoneNumber,
   ]);
 
@@ -287,11 +232,7 @@ export default function ChecklistAndConfig({
     setAllChecksPassed(checklist.every((item) => item.done));
   }, [checklist]);
 
-  useEffect(() => {
-    if (!ready) {
-      checkNgrok();
-    }
-  }, [localServerUp, ready]);
+  // Removed effect that was calling checkNgrok
 
   useEffect(() => {
     if (!allChecksPassed) {
